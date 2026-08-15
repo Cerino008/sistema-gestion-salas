@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sala - Salas de Informática</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/api.js"></script>
+    <script src="js/salas.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <div x-data="salasApp()" x-init="init()">
+
+        <header class="bg-slate-800 text-white px-6 py-4 shadow-md">
+            <div class="max-w-4xl mx-auto flex items-center gap-4">
+                <a href="index.html" class="text-slate-300 hover:text-white text-sm">&larr; Volver al Dashboard</a>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-6 py-8">
+
+            <div x-show="cargando" class="text-center text-slate-500 py-20">Cargando sala...</div>
+
+            <div x-show="error" class="bg-red-100 border border-red-300 text-red-700 rounded-lg p-4 mb-6">
+                <p class="font-semibold">No se pudo cargar esta sala.</p>
+                <p class="text-sm mt-1" x-text="error"></p>
+            </div>
+
+            <template x-if="!cargando && !error && sala">
+                <div class="space-y-6">
+
+                    <!-- Título -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-slate-800" x-text="sala.nombre"></h1>
+                            <p class="text-slate-500 text-sm" x-text="`${puestos.length} puesto(s)`"></p>
+                        </div>
+                        <button
+                            x-show="!mostrarFormNuevoPuesto"
+                            @click="abrirFormNuevoPuesto()"
+                            class="bg-slate-700 text-white px-4 py-2 rounded text-sm hover:bg-slate-800"
+                        >
+                            + Agregar puesto
+                        </button>
+                    </div>
+
+                    <!-- Formulario: nuevo puesto -->
+                    <div x-show="mostrarFormNuevoPuesto" class="bg-white rounded-lg shadow p-5 space-y-3">
+                        <h2 class="font-semibold text-slate-700">Nuevo puesto</h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Número de puesto</label>
+                                <input
+                                    type="number" min="1" x-model="formNuevoPuesto.numero_puesto"
+                                    class="border rounded px-2 py-1.5 text-sm w-full"
+                                />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Estado del anclaje</label>
+                                <select x-model="formNuevoPuesto.estado_anclaje_id" class="border rounded px-2 py-1.5 text-sm w-full">
+                                    <option value="">Seleccionar...</option>
+                                    <template x-for="estado in estadosAnclaje" :key="estado.id">
+                                        <option :value="estado.id" x-text="estado.nombre"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Observaciones (opcional)</label>
+                            <input
+                                type="text" x-model="formNuevoPuesto.observaciones"
+                                placeholder="Ej: falta una tuerca"
+                                class="border rounded px-2 py-1.5 text-sm w-full"
+                            />
+                        </div>
+                        <div class="flex items-center gap-3 pt-1">
+                            <button
+                                @click="guardarNuevoPuesto()" :disabled="guardandoNuevoPuesto"
+                                class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                            >
+                                <span x-show="!guardandoNuevoPuesto">Crear puesto</span>
+                                <span x-show="guardandoNuevoPuesto">Creando...</span>
+                            </button>
+                            <button @click="cerrarFormNuevoPuesto()" class="text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
+                        </div>
+                        <span
+                            x-show="mensajeNuevoPuesto" class="block text-sm"
+                            :class="mensajeNuevoPuesto && mensajeNuevoPuesto.startsWith('Error') ? 'text-red-600' : 'text-green-600'"
+                            x-text="mensajeNuevoPuesto"
+                        ></span>
+                    </div>
+
+                    <span x-show="mensajeBorrado" class="block bg-red-100 text-red-700 rounded p-3 text-sm" x-text="mensajeBorrado"></span>
+
+                    <!-- Lista de puestos -->
+                    <div class="space-y-3">
+                        <template x-for="puesto in puestos" :key="puesto.id">
+                            <div class="bg-white rounded-lg shadow p-4">
+
+                                <!-- Vista normal (no edición) -->
+                                <template x-if="editandoPuestoId !== puesto.id">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-semibold text-slate-800">Puesto <span x-text="puesto.numero_puesto"></span></span>
+                                                <span
+                                                    class="px-2 py-0.5 rounded text-xs font-medium"
+                                                    :class="claseBadgeEstado(puesto.estado_anclaje_nombre)"
+                                                    x-text="puesto.estado_anclaje_nombre"
+                                                ></span>
+                                            </div>
+                                            <p class="text-sm text-slate-500 mt-0.5" x-show="puesto.observaciones" x-text="puesto.observaciones"></p>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <a
+                                                :href="`puesto-detalle.html?id=${puesto.id}`"
+                                                class="text-sm text-slate-600 hover:text-slate-900 underline"
+                                            >
+                                                Ver detalle
+                                            </a>
+                                            <button @click="empezarEdicion(puesto)" class="text-sm text-slate-600 hover:text-slate-900 px-2">
+                                                Editar
+                                            </button>
+                                            <button @click="borrarPuesto(puesto)" class="text-sm text-red-600 hover:text-red-800 px-2">
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Vista de edición inline -->
+                                <template x-if="editandoPuestoId === puesto.id">
+                                    <div class="space-y-3">
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs text-slate-500 mb-1">Número de puesto</label>
+                                                <input type="number" min="1" x-model="formEdicion.numero_puesto" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 mb-1">Estado del anclaje</label>
+                                                <select x-model="formEdicion.estado_anclaje_id" class="border rounded px-2 py-1.5 text-sm w-full">
+                                                    <template x-for="estado in estadosAnclaje" :key="estado.id">
+                                                        <option :value="estado.id" x-text="estado.nombre"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">Observaciones</label>
+                                            <input type="text" x-model="formEdicion.observaciones" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button
+                                                @click="guardarEdicion(puesto.id)" :disabled="guardandoEdicion"
+                                                class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                                            >
+                                                <span x-show="!guardandoEdicion">Guardar</span>
+                                                <span x-show="guardandoEdicion">Guardando...</span>
+                                            </button>
+                                            <button @click="cancelarEdicion()" class="text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
+                                        </div>
+                                        <span x-show="mensajeEdicion" class="block text-sm text-red-600" x-text="mensajeEdicion"></span>
+                                    </div>
+                                </template>
+
+                            </div>
+                        </template>
+
+                        <div x-show="puestos.length === 0" class="text-center text-slate-400 italic py-10">
+                            Esta sala todavía no tiene puestos cargados.
+                        </div>
+                    </div>
+
+                </div>
+            </template>
+
+        </main>
+    </div>
+
+</body>
+</html>

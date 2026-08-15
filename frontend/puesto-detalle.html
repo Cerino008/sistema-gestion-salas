@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detalle de Puesto - Salas de Informática</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/api.js"></script>
+    <script src="js/formularios.js"></script>
+    <script src="js/puesto-detalle.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <div x-data="puestoDetalleApp()" x-init="init()">
+
+        <!-- Encabezado -->
+        <header class="bg-slate-800 text-white px-6 py-4 shadow-md">
+            <div class="max-w-4xl mx-auto flex items-center gap-4">
+                <a href="index.html" class="text-slate-300 hover:text-white text-sm">&larr; Volver al Dashboard</a>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-6 py-8">
+
+            <!-- Cargando / Error -->
+            <div x-show="cargando" class="text-center text-slate-500 py-20">Cargando datos del puesto...</div>
+
+            <div x-show="error" class="bg-red-100 border border-red-300 text-red-700 rounded-lg p-4 mb-6">
+                <p class="font-semibold">No se pudo cargar este puesto.</p>
+                <p class="text-sm mt-1" x-text="error"></p>
+            </div>
+
+            <template x-if="!cargando && !error && puesto">
+                <div class="space-y-6">
+
+                    <!-- Título + estado general -->
+                    <div class="bg-white rounded-lg shadow p-5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-2xl font-bold text-slate-800">
+                                    Puesto <span x-text="puesto.numero_puesto"></span>
+                                </h1>
+                                <p class="text-slate-500" x-text="puesto.sala_nombre"></p>
+                            </div>
+                            <div class="text-right">
+                                <span
+                                    class="inline-block text-sm font-semibold px-3 py-1 rounded-full"
+                                    :class="claseColorTexto(dashboard.color) + ' bg-opacity-10'"
+                                    x-text="dashboard.color.toUpperCase()"
+                                ></span>
+                            </div>
+                        </div>
+
+                        <!-- Motivos de alerta, si hay -->
+                        <ul
+                            x-show="dashboard.motivos.length > 0"
+                            class="mt-3 text-sm text-slate-600 list-disc list-inside space-y-0.5"
+                        >
+                            <template x-for="motivo in dashboard.motivos" :key="motivo">
+                                <li x-text="motivo"></li>
+                            </template>
+                        </ul>
+                        <p x-show="dashboard.motivos.length === 0" class="mt-3 text-sm text-green-600">
+                            Sin novedades en este puesto.
+                        </p>
+                    </div>
+
+                    <!-- MÓDULO I: Infraestructura -->
+                    <section class="bg-white rounded-lg shadow p-5">
+                        <h2 class="font-semibold text-slate-700 mb-3">🔩 Infraestructura (Anclaje)</h2>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-slate-500">Estado del anclaje:</span>
+                                <span
+                                    class="ml-1 px-2 py-0.5 rounded text-xs font-medium"
+                                    :class="claseBadgeEstado(puesto.estado_anclaje_nombre)"
+                                    x-text="puesto.estado_anclaje_nombre"
+                                ></span>
+                            </div>
+                            <div class="col-span-2" x-show="puesto.observaciones">
+                                <span class="text-slate-500">Observaciones:</span>
+                                <span class="text-slate-700" x-text="puesto.observaciones"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- MÓDULO IV: Red -->
+                    <section class="bg-white rounded-lg shadow p-5">
+                        <h2 class="font-semibold text-slate-700 mb-3">🌐 Red y Cableado</h2>
+                        <div class="grid grid-cols-2 gap-3 text-sm mb-4">
+                            <div>
+                                <span class="text-slate-500">Jack (boca de pared):</span>
+                                <span
+                                    class="ml-1 px-2 py-0.5 rounded text-xs font-medium"
+                                    :class="claseBadgeEstado(puesto.estado_jack)"
+                                    x-text="puesto.estado_jack"
+                                ></span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500">Cable Ethernet:</span>
+                                <span
+                                    class="ml-1 px-2 py-0.5 rounded text-xs font-medium"
+                                    :class="claseBadgeEstado(puesto.estado_cable)"
+                                    x-text="puesto.estado_cable"
+                                ></span>
+                            </div>
+                        </div>
+
+                        <!-- Formulario para reportar falla -->
+                        <div class="border-t pt-4">
+                            <p class="text-sm font-medium text-slate-600 mb-2">Reportar estado de cableado</p>
+                            <div class="flex flex-wrap gap-3 items-end">
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">Jack</label>
+                                    <select
+                                        x-model="formCableado.estado_jack"
+                                        class="border rounded px-2 py-1.5 text-sm"
+                                    >
+                                        <option value="Bien">Bien</option>
+                                        <option value="Con fallas">Con fallas</option>
+                                        <option value="Roto">Roto</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">Cable</label>
+                                    <select
+                                        x-model="formCableado.estado_cable"
+                                        class="border rounded px-2 py-1.5 text-sm"
+                                    >
+                                        <option value="Bien">Bien</option>
+                                        <option value="Con fallas">Con fallas</option>
+                                        <option value="Roto">Roto</option>
+                                    </select>
+                                </div>
+                                <button
+                                    @click="guardarEstadoCableado()"
+                                    :disabled="guardandoCableado"
+                                    class="bg-slate-700 text-white px-4 py-1.5 rounded text-sm hover:bg-slate-800 disabled:opacity-50"
+                                >
+                                    <span x-show="!guardandoCableado">Guardar</span>
+                                    <span x-show="guardandoCableado">Guardando...</span>
+                                </button>
+                                <span
+                                    x-show="mensajeGuardado"
+                                    class="text-sm"
+                                    :class="mensajeGuardado && mensajeGuardado.startsWith('Error') ? 'text-red-600' : 'text-green-600'"
+                                    x-text="mensajeGuardado"
+                                ></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- MÓDULO II: Hardware -->
+                    <section class="bg-white rounded-lg shadow p-5">
+                        <h2 class="font-semibold text-slate-700 mb-3">🖥️ Computadora</h2>
+
+                        <!-- PUESTO VACÍO: dar de alta PC nueva o traer una del depósito -->
+                        <template x-if="!dashboard.tiene_pc">
+                            <div>
+                                <div class="flex gap-2 mb-3" x-show="!mostrarFormAltaPC && !mostrarFormAsignarExistente">
+                                    <button
+                                        @click="abrirFormAltaPC()"
+                                        class="text-sm bg-slate-700 text-white px-3 py-1.5 rounded hover:bg-slate-800"
+                                    >
+                                        + Dar de alta PC nueva
+                                    </button>
+                                    <button
+                                        @click="abrirFormAsignarExistente()"
+                                        class="text-sm border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-50"
+                                    >
+                                        Asignar PC desde depósito
+                                    </button>
+                                </div>
+
+                                <!-- Formulario: PC nueva -->
+                                <div x-show="mostrarFormAltaPC" class="border rounded-lg p-4 bg-slate-50 space-y-3">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">Procesador</label>
+                                            <input type="text" x-model="formAltaPC.procesador" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">RAM</label>
+                                            <input type="text" x-model="formAltaPC.ram" placeholder="Ej: 8GB" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">Almacenamiento</label>
+                                            <input type="text" x-model="formAltaPC.almacenamiento" placeholder="Ej: 240GB SSD" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">Tarjeta gráfica</label>
+                                            <input type="text" x-model="formAltaPC.tarjeta_grafica" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">Sistema operativo</label>
+                                            <input type="text" x-model="formAltaPC.sistema_operativo" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-500 mb-1">Nro. de serie</label>
+                                            <input type="text" x-model="formAltaPC.numero_serie" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Estado operativo</label>
+                                        <select x-model="formAltaPC.estado_operativo_id" class="border rounded px-2 py-1.5 text-sm w-full">
+                                            <option value="">Seleccionar...</option>
+                                            <template x-for="estado in estadosOperativoPC" :key="estado.id">
+                                                <option :value="estado.id" x-text="estado.nombre"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Registrado por</label>
+                                        <input type="text" x-model="formAltaPC.usuario_registro" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                    </div>
+                                    <div class="flex items-center gap-3 pt-1">
+                                        <button
+                                            @click="guardarAltaPC()" :disabled="guardandoAltaPC"
+                                            class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                                        >
+                                            <span x-show="!guardandoAltaPC">Guardar alta</span>
+                                            <span x-show="guardandoAltaPC">Guardando...</span>
+                                        </button>
+                                        <button @click="cerrarFormAltaPC()" class="text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
+                                    </div>
+                                </div>
+
+                                <!-- Formulario: asignar PC existente desde depósito -->
+                                <div x-show="mostrarFormAsignarExistente" class="border rounded-lg p-4 bg-slate-50 space-y-3">
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">PC en depósito</label>
+                                        <select x-model="formAsignarExistente.computadora_id" class="border rounded px-2 py-1.5 text-sm w-full">
+                                            <option value="">Seleccionar...</option>
+                                            <template x-for="pc in computadorasEnDeposito" :key="pc.id">
+                                                <option :value="pc.id" x-text="`PC #${pc.id} - ${pc.procesador || 'sin datos'} (serie: ${pc.numero_serie || '-'})`"></option>
+                                            </template>
+                                        </select>
+                                        <p x-show="computadorasEnDeposito.length === 0" class="text-xs text-slate-400 italic mt-1">
+                                            No hay computadoras en depósito.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Registrado por</label>
+                                        <input type="text" x-model="formAsignarExistente.usuario_registro" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                    </div>
+                                    <div class="flex items-center gap-3 pt-1">
+                                        <button
+                                            @click="guardarAsignarExistente()" :disabled="guardandoAsignarExistente"
+                                            class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                                        >
+                                            <span x-show="!guardandoAsignarExistente">Asignar</span>
+                                            <span x-show="guardandoAsignarExistente">Asignando...</span>
+                                        </button>
+                                        <button @click="cerrarFormAsignarExistente()" class="text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
+                                    </div>
+                                </div>
+
+                                <span x-show="mensajeAltaPC" class="block text-sm mt-2" :class="mensajeAltaPC && mensajeAltaPC.startsWith('Error') ? 'text-red-600' : 'text-green-600'" x-text="mensajeAltaPC"></span>
+                                <span x-show="mensajeAsignarExistente" class="block text-sm mt-2" :class="mensajeAsignarExistente && mensajeAsignarExistente.startsWith('Error') ? 'text-red-600' : 'text-green-600'" x-text="mensajeAsignarExistente"></span>
+                            </div>
+                        </template>
+
+                        <!-- PUESTO OCUPADO: specs + botón de mover -->
+                        <template x-if="dashboard.tiene_pc && computadora">
+                            <div>
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="grid grid-cols-2 gap-3 text-sm flex-1">
+                                        <div><span class="text-slate-500">Procesador:</span> <span x-text="computadora.procesador || '-'"></span></div>
+                                        <div><span class="text-slate-500">RAM:</span> <span x-text="computadora.ram || '-'"></span></div>
+                                        <div><span class="text-slate-500">Almacenamiento:</span> <span x-text="computadora.almacenamiento || '-'"></span></div>
+                                        <div><span class="text-slate-500">Tarjeta gráfica:</span> <span x-text="computadora.tarjeta_grafica || '-'"></span></div>
+                                        <div><span class="text-slate-500">Sistema operativo:</span> <span x-text="computadora.sistema_operativo || '-'"></span></div>
+                                        <div><span class="text-slate-500">Nro. de serie:</span> <span x-text="computadora.numero_serie || '-'"></span></div>
+                                        <div class="col-span-2">
+                                            <span class="text-slate-500">Alta el:</span>
+                                            <span x-text="formatearFecha(computadora.fecha_alta)"></span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        x-show="!mostrarFormMover"
+                                        @click="abrirFormMover()"
+                                        class="text-sm border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-50 whitespace-nowrap"
+                                    >
+                                        Mover a otro puesto
+                                    </button>
+                                </div>
+
+                                <!-- Formulario: mover -->
+                                <div x-show="mostrarFormMover" class="border rounded-lg p-4 bg-slate-50 space-y-3">
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Destino</label>
+                                        <select x-model="formMover.destino" class="border rounded px-2 py-1.5 text-sm w-full">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="deposito">📦 Enviar a depósito</option>
+                                            <template x-for="p in puestosDisponibles" :key="p.id">
+                                                <option :value="p.id" x-text="p.etiqueta"></option>
+                                            </template>
+                                        </select>
+                                        <p x-show="puestosDisponibles.length === 0" class="text-xs text-slate-400 italic mt-1">
+                                            No hay puestos vacíos disponibles (solo depósito).
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-500 mb-1">Registrado por</label>
+                                        <input type="text" x-model="formMover.usuario_registro" class="border rounded px-2 py-1.5 text-sm w-full" />
+                                    </div>
+                                    <div class="flex items-center gap-3 pt-1">
+                                        <button
+                                            @click="guardarMover()" :disabled="guardandoMover"
+                                            class="bg-slate-700 text-white px-4 py-1.5 rounded text-sm hover:bg-slate-800 disabled:opacity-50"
+                                        >
+                                            <span x-show="!guardandoMover">Confirmar movimiento</span>
+                                            <span x-show="guardandoMover">Moviendo...</span>
+                                        </button>
+                                        <button @click="cerrarFormMover()" class="text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
+                                    </div>
+                                </div>
+
+                                <span x-show="mensajeMover" class="block text-sm mt-2" :class="mensajeMover && mensajeMover.startsWith('Error') ? 'text-red-600' : 'text-green-600'" x-text="mensajeMover"></span>
+                            </div>
+                        </template>
+
+                        <!-- Periféricos -->
+                        <div class="mt-4 border-t pt-4">
+                            <p class="text-sm font-medium text-slate-600 mb-2">Periféricos del puesto</p>
+                            <div x-show="perifericos.length === 0" class="text-sm text-slate-400 italic">
+                                No hay periféricos registrados en este puesto.
+                            </div>
+                            <ul class="space-y-1.5">
+                                <template x-for="periferico in perifericos" :key="periferico.id">
+                                    <li class="flex items-center justify-between text-sm border rounded px-3 py-1.5">
+                                        <span>
+                                            <span class="font-medium" x-text="nombreTipoPeriferico(periferico.tipo_id)"></span>
+                                            <span class="text-slate-400" x-show="periferico.marca_modelo"> - <span x-text="periferico.marca_modelo"></span></span>
+                                        </span>
+                                        <span
+                                            class="px-2 py-0.5 rounded text-xs font-medium"
+                                            :class="claseBadgeEstado(nombreEstadoPeriferico(periferico.estado_id))"
+                                            x-text="nombreEstadoPeriferico(periferico.estado_id)"
+                                        ></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- MÓDULO III: Auditoría de Software -->
+                    <section class="bg-white rounded-lg shadow p-5" x-show="dashboard.tiene_pc">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-semibold text-slate-700">🛡️ Auditoría de Software</h2>
+                            <button
+                                x-show="!mostrarFormAuditoria"
+                                @click="abrirFormAuditoria()"
+                                class="text-sm bg-slate-700 text-white px-3 py-1.5 rounded hover:bg-slate-800"
+                            >
+                                + Cargar nueva auditoría
+                            </button>
+                        </div>
+
+                        <!-- Formulario de carga -->
+                        <div x-show="mostrarFormAuditoria" class="border rounded-lg p-4 mb-4 bg-slate-50 space-y-3">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" x-model="formAuditoria.deep_freeze" id="deep_freeze" class="w-4 h-4" />
+                                <label for="deep_freeze" class="text-sm">Deep Freeze activo (Congelado)</label>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">Malware detectado (opcional)</label>
+                                    <input
+                                        type="text" x-model="formAuditoria.malware_detectado"
+                                        placeholder="Ej: Troyano, Adware"
+                                        class="border rounded px-2 py-1.5 text-sm w-full"
+                                    />
+                                </div>
+                                <div x-show="formAuditoria.malware_detectado">
+                                    <label class="block text-xs text-slate-500 mb-1">Gravedad</label>
+                                    <select x-model="formAuditoria.gravedad_malware" class="border rounded px-2 py-1.5 text-sm w-full">
+                                        <option value="">-</option>
+                                        <option value="Baja">Baja</option>
+                                        <option value="Media">Media</option>
+                                        <option value="Alta">Alta</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Software no autorizado (opcional)</label>
+                                <input
+                                    type="text" x-model="formAuditoria.software_no_autorizado"
+                                    placeholder="Ej: Fortnite, juegos varios"
+                                    class="border rounded px-2 py-1.5 text-sm w-full"
+                                />
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Registrado por</label>
+                                <input
+                                    type="text" x-model="formAuditoria.usuario_registro"
+                                    placeholder="Ej: Profe Carlos"
+                                    class="border rounded px-2 py-1.5 text-sm w-full"
+                                />
+                            </div>
+
+                            <div>
+                                <p class="text-xs text-slate-500 mb-1.5">Checklist de software obligatorio (tildá lo que SÍ está instalado)</p>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <template x-for="sw in catalogoSoftware" :key="sw.id">
+                                        <label class="flex items-center gap-1.5 text-sm">
+                                            <input type="checkbox" x-model="formAuditoria.checklist[sw.id]" class="w-4 h-4" />
+                                            <span x-text="sw.nombre"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 pt-1">
+                                <button
+                                    @click="guardarAuditoria()"
+                                    :disabled="guardandoAuditoria"
+                                    class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                                >
+                                    <span x-show="!guardandoAuditoria">Guardar auditoría</span>
+                                    <span x-show="guardandoAuditoria">Guardando...</span>
+                                </button>
+                                <button @click="cerrarFormAuditoria()" class="text-sm text-slate-500 hover:text-slate-700">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+
+                        <span
+                            x-show="mensajeAuditoria"
+                            class="block text-sm mb-3"
+                            :class="mensajeAuditoria && mensajeAuditoria.startsWith('Error') ? 'text-red-600' : 'text-green-600'"
+                            x-text="mensajeAuditoria"
+                        ></span>
+
+                        <div x-show="!auditoria" class="text-sm text-slate-400 italic">
+                            Esta computadora todavía no tiene auditorías cargadas.
+                        </div>
+
+                        <template x-if="auditoria">
+                            <div>
+                                <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                                    <div>
+                                        <span class="text-slate-500">Deep Freeze:</span>
+                                        <span
+                                            class="ml-1 px-2 py-0.5 rounded text-xs font-medium"
+                                            :class="auditoria.deep_freeze ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                                            x-text="auditoria.deep_freeze ? 'Congelado' : 'Descongelado'"
+                                        ></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-500">Fecha:</span>
+                                        <span x-text="formatearFecha(auditoria.fecha_auditoria)"></span>
+                                    </div>
+                                    <div class="col-span-2" x-show="auditoria.malware_detectado">
+                                        <span class="text-slate-500">Malware:</span>
+                                        <span class="text-red-600 font-medium" x-text="auditoria.malware_detectado"></span>
+                                        <span x-show="auditoria.gravedad_malware" x-text="' (' + auditoria.gravedad_malware + ')'"></span>
+                                    </div>
+                                    <div class="col-span-2" x-show="auditoria.software_no_autorizado">
+                                        <span class="text-slate-500">Software no autorizado:</span>
+                                        <span class="text-orange-600" x-text="auditoria.software_no_autorizado"></span>
+                                    </div>
+                                </div>
+
+                                <p class="text-sm font-medium text-slate-600 mb-2">Checklist de software</p>
+                                <ul class="grid grid-cols-2 gap-1.5">
+                                    <template x-for="item in auditoria.checklist" :key="item.software_id">
+                                        <li class="text-sm flex items-center gap-1.5">
+                                            <span x-text="item.instalado ? '✅' : '❌'"></span>
+                                            <span x-text="item.nombre_software"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
+                    </section>
+
+                    <!-- MÓDULO V: Historial de Soporte -->
+                    <section class="bg-white rounded-lg shadow p-5" x-show="dashboard.tiene_pc">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-semibold text-slate-700">🛠️ Historial de Soporte</h2>
+                            <button
+                                x-show="!mostrarFormSoporte"
+                                @click="abrirFormSoporte()"
+                                class="text-sm bg-slate-700 text-white px-3 py-1.5 rounded hover:bg-slate-800"
+                            >
+                                + Registrar mantenimiento
+                            </button>
+                        </div>
+
+                        <!-- Formulario de carga -->
+                        <div x-show="mostrarFormSoporte" class="border rounded-lg p-4 mb-4 bg-slate-50 space-y-3">
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Tipo de componente</label>
+                                <select x-model="formSoporte.tipo_componente_id" class="border rounded px-2 py-1.5 text-sm w-full">
+                                    <option value="">Seleccionar...</option>
+                                    <template x-for="tipo in tiposComponente" :key="tipo.id">
+                                        <option :value="tipo.id" x-text="tipo.nombre"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">Componente retirado</label>
+                                    <input
+                                        type="text" x-model="formSoporte.componente_retirado_detalle"
+                                        placeholder="Ej: RAM Kingston 8GB - quemada"
+                                        class="border rounded px-2 py-1.5 text-sm w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">Componente nuevo</label>
+                                    <input
+                                        type="text" x-model="formSoporte.componente_nuevo_detalle"
+                                        placeholder="Ej: RAM Corsair 8GB"
+                                        class="border rounded px-2 py-1.5 text-sm w-full"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Nro. de serie (del componente nuevo)</label>
+                                <input
+                                    type="text" x-model="formSoporte.nro_serie_nuevo"
+                                    class="border rounded px-2 py-1.5 text-sm w-full"
+                                />
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Observaciones</label>
+                                <textarea
+                                    x-model="formSoporte.observaciones" rows="2"
+                                    class="border rounded px-2 py-1.5 text-sm w-full"
+                                ></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Registrado por</label>
+                                <input
+                                    type="text" x-model="formSoporte.usuario_registro"
+                                    placeholder="Ej: Tecnico Juan"
+                                    class="border rounded px-2 py-1.5 text-sm w-full"
+                                />
+                            </div>
+
+                            <div class="flex items-center gap-3 pt-1">
+                                <button
+                                    @click="guardarSoporte()"
+                                    :disabled="guardandoSoporte"
+                                    class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                                >
+                                    <span x-show="!guardandoSoporte">Guardar registro</span>
+                                    <span x-show="guardandoSoporte">Guardando...</span>
+                                </button>
+                                <button @click="cerrarFormSoporte()" class="text-sm text-slate-500 hover:text-slate-700">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+
+                        <span
+                            x-show="mensajeSoporte"
+                            class="block text-sm mb-3"
+                            :class="mensajeSoporte && mensajeSoporte.startsWith('Error') ? 'text-red-600' : 'text-green-600'"
+                            x-text="mensajeSoporte"
+                        ></span>
+
+                        <div x-show="historialSoporte.length === 0" class="text-sm text-slate-400 italic">
+                            Sin cambios de componentes registrados.
+                        </div>
+                        <ul class="space-y-2">
+                            <template x-for="registro in historialSoporte" :key="registro.id">
+                                <li class="text-sm border-l-4 border-slate-300 pl-3 py-1">
+                                    <div class="text-slate-400 text-xs" x-text="formatearFecha(registro.fecha_hora)"></div>
+                                    <div>
+                                        <span class="text-red-600" x-text="registro.componente_retirado_detalle || '-'"></span>
+                                        <span class="mx-1">&rarr;</span>
+                                        <span class="text-green-600" x-text="registro.componente_nuevo_detalle || '-'"></span>
+                                    </div>
+                                    <div class="text-slate-500 text-xs" x-show="registro.observaciones" x-text="registro.observaciones"></div>
+                                </li>
+                            </template>
+                        </ul>
+                    </section>
+
+                    <!-- Historial de movimientos de la PC -->
+                    <section class="bg-white rounded-lg shadow p-5" x-show="dashboard.tiene_pc">
+                        <h2 class="font-semibold text-slate-700 mb-3">📍 Historial de Ubicaciones</h2>
+                        <div x-show="historialUbicaciones.length === 0" class="text-sm text-slate-400 italic">
+                            Sin movimientos registrados.
+                        </div>
+                        <ul class="space-y-1.5">
+                            <template x-for="mov in historialUbicaciones" :key="mov.id">
+                                <li class="text-sm flex justify-between border-b pb-1">
+                                    <span x-text="formatearFecha(mov.fecha)"></span>
+                                    <span>
+                                        Puesto <span x-text="mov.puesto_id_anterior ?? 'depósito'"></span>
+                                        &rarr;
+                                        Puesto <span x-text="mov.puesto_id_nuevo ?? 'depósito'"></span>
+                                    </span>
+                                </li>
+                            </template>
+                        </ul>
+                    </section>
+
+                </div>
+            </template>
+
+        </main>
+    </div>
+
+</body>
+</html>

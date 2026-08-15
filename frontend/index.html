@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Salas de Informática</title>
+
+    <!-- Tailwind CSS por CDN: sin build tools, sin npm install -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js por CDN: reactividad sin frameworks pesados -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <div x-data="dashboardApp()" x-init="init()">
+
+        <!-- Encabezado -->
+        <header class="bg-slate-800 text-white px-6 py-4 shadow-md">
+            <div class="max-w-6xl mx-auto flex items-center justify-between">
+                <h1 class="text-xl font-bold">Salas de Informática</h1>
+                <div class="text-sm text-slate-300" x-show="ultimaActualizacion">
+                    Última actualización: <span x-text="ultimaActualizacion"></span>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-6 py-8">
+
+            <!-- Estado: cargando -->
+            <div x-show="cargando" class="text-center text-slate-500 py-20">
+                Cargando estado de las salas...
+            </div>
+
+            <!-- Estado: error de conexión -->
+            <div
+                x-show="error"
+                class="bg-red-100 border border-red-300 text-red-700 rounded-lg p-4 mb-6"
+            >
+                <p class="font-semibold">No se pudo conectar con el servidor.</p>
+                <p class="text-sm mt-1" x-text="error"></p>
+                <button
+                    @click="cargarDashboard()"
+                    class="mt-3 bg-red-600 text-white px-4 py-1.5 rounded text-sm hover:bg-red-700"
+                >
+                    Reintentar
+                </button>
+            </div>
+
+            <!-- Referencia de colores -->
+            <div class="flex gap-4 mb-6 text-sm text-slate-600" x-show="!cargando && !error">
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Todo OK</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span> Falla menor / software</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Fuera de servicio</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-200 inline-block"></span> Puesto vacío</span>
+            </div>
+
+            <!-- Una sección por Sala -->
+            <template x-for="sala in salas" :key="sala.id">
+                <section class="mb-10">
+                    <div class="flex items-baseline justify-between mb-3">
+                        <a :href="`salas.html?id=${sala.id}`" class="text-lg font-semibold text-slate-800 hover:underline" x-text="sala.nombre"></a>
+                        <span class="text-sm text-slate-500" x-text="resumenSala(sala.puestos)"></span>
+                    </div>
+
+                    <!-- Aviso si el switch de la sala tiene problemas -->
+                    <div
+                        x-show="sala.switch_estado && sala.switch_estado !== 'Operativo'"
+                        class="text-sm bg-orange-100 text-orange-700 rounded px-3 py-2 mb-3"
+                    >
+                        ⚠ Switch de la sala: <span x-text="sala.switch_estado"></span>
+                    </div>
+
+                    <!-- Grilla de puestos numerados -->
+                    <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                        <template x-for="puesto in sala.puestos" :key="puesto.id">
+                            <a
+                                :href="`puesto-detalle.html?id=${puesto.id}`"
+                                class="aspect-square rounded-lg flex flex-col items-center justify-center text-white font-bold shadow transition cursor-pointer relative"
+                                :class="claseColor(puesto.color)"
+                                :title="puesto.motivos.join(' | ') || 'Sin novedades'"
+                            >
+                                <span class="text-lg leading-none" x-text="puesto.numero_puesto"></span>
+                                <span class="text-xs absolute top-1 right-1" x-text="emojiColor(puesto.color)"></span>
+                            </a>
+                        </template>
+                    </div>
+                </section>
+            </template>
+
+            <div x-show="!cargando && !error && salas.length === 0" class="text-center text-slate-400 py-20">
+                Todavía no hay salas cargadas.
+            </div>
+
+        </main>
+    </div>
+
+</body>
+</html>
