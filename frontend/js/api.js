@@ -5,7 +5,7 @@
  * Cambiá API_BASE si corrés el backend en otro puerto/host.
  */
 
-const API_BASE = "http://127.0.0.1:8080";
+const API_BASE = "http://127.0.0.1:8000";
 
 /**
  * Wrapper genérico de GET. Lanza un Error con el detail del backend
